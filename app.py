@@ -344,3 +344,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+from google.auth.transport.requests import Request
