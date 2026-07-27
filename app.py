@@ -181,6 +181,20 @@ def fetch_and_analyze_1000():
     
     return df
 
+
+def load_saved_history():
+    """Load the most recently saved alerts when Gmail is temporarily unavailable."""
+    history_file = "visa_alerts_history.csv"
+    if not os.path.exists(history_file):
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_csv(history_file, parse_dates=["timestamp"])
+    except (OSError, ValueError, pd.errors.ParserError):
+        return pd.DataFrame()
+
+    return parse_subject_details(df)
+
 # ==========================================
 # 5. USER EXPLANATION CARD
 # ==========================================
@@ -213,8 +227,9 @@ def main():
         st.title("⚡ Control Center")
         st.markdown("---")
         
-        if st.button("🔄 Force Refresh Data", use_container_width=True):
+        if st.button("🔄 Force Refresh Data", width="stretch"):
             st.cache_data.clear()
+            get_gmail_service.clear()
             st.rerun()
             
         st.markdown("<br>", unsafe_allow_html=True)
@@ -227,8 +242,22 @@ def main():
     st.title("🔥 Visa Slot Release Engine")
     st.markdown("Real-time monitoring and predictive probability analytics")
     
-    with st.spinner("Fetching full email payloads from Gmail (this may take a moment)..."):
-        df = fetch_and_analyze_1000()
+    try:
+        with st.spinner("Fetching full email payloads from Gmail (this may take a moment)..."):
+            df = fetch_and_analyze_1000()
+    except Exception as exc:
+        df = load_saved_history()
+        if df.empty:
+            st.error(
+                "Unable to connect to Gmail and no saved alert history is available. "
+                "Check your internet/proxy settings, then refresh the page."
+            )
+            st.caption(f"Connection details: {exc}")
+            return
+        st.warning(
+            "Gmail is temporarily unavailable. Showing the last saved alert history; "
+            "refresh after your connection is restored."
+        )
         
     if df.empty:
         st.warning("No visa alert emails found matching 'from:alerts@checkvisaslots.com'.")
@@ -288,17 +317,17 @@ def main():
 
     with col_a:
         st.markdown("**Top Visa Categories**")
-        st.dataframe(df['visa_type'].value_counts(), use_container_width=True)
+        st.dataframe(df['visa_type'].value_counts())
 
     with col_b:
         st.markdown("**Top Target Months**")
         # Ensure we only count known target months, not empty ones
         valid_months = df[df['target_months'] != 'Unknown']['target_months']
-        st.dataframe(valid_months.value_counts(), use_container_width=True)
+        st.dataframe(valid_months.value_counts())
 
     with col_c:
         st.markdown("**Top  Cities**")
-        st.dataframe(df['target_city'].value_counts(), use_container_width=True)
+        st.dataframe(df['target_city'].value_counts())
 
     st.markdown("---")
 
@@ -310,8 +339,7 @@ def main():
     
     st.dataframe(
         df[available_cols].head(500), 
-        height=500, 
-        use_container_width=True
+        height=500
     )
 
 if __name__ == '__main__':
