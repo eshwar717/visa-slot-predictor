@@ -1,6 +1,7 @@
 streamlit
+google-auth
+google-auth-oauthlib
+google-api-python-client
+requests
 pandas
 numpy
-plotly
-requests
-streamlit-autorefresh
