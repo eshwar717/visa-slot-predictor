@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import time
-import plotly.express as px  # <-- New library for the beautiful charts
+import plotly.express as px
 
 st.set_page_config(page_title="Visa Slot Release Engine", layout="wide")
 
@@ -75,61 +75,47 @@ def main():
     st.markdown("---")
 
     # ==========================================
-    # INTERACTIVE CHARTS (Like your screenshot)
+    # LATEST VISUAL PROOF (SCREENSHOTS)
+    # ==========================================
+    st.subheader("📸 Latest Screenshot Evidence")
+    
+    if 'screenshots' in df.columns:
+        has_images = df[df['screenshots'] != ""]
+        if not has_images.empty:
+            img_cols = st.columns(3)
+            for index, row in has_images.head(3).reset_index().iterrows():
+                first_img_path = row['screenshots'].split(', ')[0]
+                with img_cols[index]:
+                    st.image(first_img_path, caption=f"{row['target_city']} - {row['visa_type']}")
+                    st.caption(f"Alert time: {row['timestamp']}")
+        else:
+            st.info("No screenshots found in recent alerts yet.")
+    else:
+        st.info("Waiting for background engine to sync new screenshot data...")
+        
+    st.markdown("---")
+
+    # ==========================================
+    # INTERACTIVE CHARTS
     # ==========================================
     st.subheader("📊 Visa Slot Analytics")
-    
-    # Filter out 'Unknown' cities so the charts look clean
     chart_df = df[df['target_city'] != 'Unknown']
     
     if not chart_df.empty:
-        # 1. The Donut Chart (Volume by Consulate)
         st.markdown("**Issuances (Slot Volume) by Consulate**")
-        
-        # Group the data to get total slots per city
         city_volume = chart_df.groupby('target_city')['available_slots'].sum().reset_index()
-        
-        fig_donut = px.pie(
-            city_volume, 
-            values='available_slots', 
-            names='target_city', 
-            hole=0.4, # This turns the pie chart into a donut chart
-            color_discrete_sequence=px.colors.sequential.Blues_r # Blue theme from screenshot
-        )
-        
-        # Put the labels on the outside and format the legend to match the screenshot
+        fig_donut = px.pie(city_volume, values='available_slots', names='target_city', hole=0.4, color_discrete_sequence=px.colors.sequential.Blues_r)
         fig_donut.update_traces(textposition='outside', textinfo='percent+label')
-        fig_donut.update_layout(
-            showlegend=True, 
-            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
-        )
-        
+        fig_donut.update_layout(showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5))
         st.plotly_chart(fig_donut, use_container_width=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # 2. The Area Chart (Monthly/Daily issuances over time)
         st.markdown("**Slot Releases by Consulate Over Time**")
-        
-        # Group the data by Date AND City
         time_df = chart_df.groupby(['date', 'target_city'])['available_slots'].sum().reset_index()
-        
-        fig_area = px.area(
-            time_df, 
-            x='date', 
-            y='available_slots', 
-            color='target_city',
-            markers=True # Adds the little dots on the lines like your screenshot
-        )
-        
-        fig_area.update_layout(
-            xaxis_title="Date", 
-            yaxis_title="Total Slots Released",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        
+        fig_area = px.area(time_df, x='date', y='available_slots', color='target_city', markers=True)
+        fig_area.update_layout(xaxis_title="Date", yaxis_title="Total Slots Released", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_area, use_container_width=True)
-
     else:
         st.info("Gathering more data to build the charts...")
 
@@ -146,30 +132,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # ==========================================
-    # LATEST VISUAL PROOF (SCREENSHOTS)
-    # ==========================================
-    st.subheader("📸 Latest Screenshot Evidence")
-    
-    # Check if the screenshots column exists (older CSVs might not have it yet)
-    if 'screenshots' in df.columns:
-        # Filter for rows that actually have an image saved
-        has_images = df[df['screenshots'] != ""]
-        
-        if not has_images.empty:
-            # Create columns to show the 3 most recent screenshots side-by-side
-            img_cols = st.columns(3)
-            
-            for index, row in has_images.head(3).reset_index().iterrows():
-                # Some emails might have multiple screenshots attached, grab the first one
-                first_img_path = row['screenshots'].split(', ')[0]
-                
-                with img_cols[index]:
-                    st.image(first_img_path, caption=f"{row['target_city']} - {row['visa_type']}")
-                    st.caption(f"Alert time: {row['timestamp']}")
-        else:
-            st.info("No screenshots found in recent alerts yet.")
-    else:
-        st.info("Waiting for background engine to sync new screenshot data...")
-        
-    st.markdown("---")
